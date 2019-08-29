@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Video Record</title>
+  </head>
+  <body>
+    <div style="float: left">
+      <video id="myVideo" autoplay="autoplay" height="400" width="500"></video>
+      <button id="record">Record</button>
+      <button id="download">Download</button>
+    </div>
+    <div style="float: left">
+      <video id="player" autoplay="autoplay" height="400" width="500"></video>
+      <button id="playBtn">play</button>
+    </div>
+  </body>
+  <script type="text/javascript">
+    const video = document.getElementById('myVideo');
+    const player = document.getElementById('player');
+
+    /* function download(blob, fileName) {
+      var a = document.createElement('a');
+      document.body.appendChild(a);
+      a.style = 'display: none';
+      url = URL.createObjectURL(blob);
+      a.href = url;
+      a.download = fileName;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    }*/
+    let chunks = [];
+
+    async function startCapture() {
+      if (video.srcObject) {
+        let tracks = video.srcObject.getTracks();
+
+        tracks.forEach(track => track.stop());
+        video.srcObject = null;
+
+        download(new Blob(chunks), 'recording.webm');
+      } else {
+        try {
+          let stream = await navigator.mediaDevices.getDisplayMedia({
+            video: true
+          });
+          let mediaRecorder = new MediaRecorder(stream, {
+            mimeType: 'video/webm'
+          });
+
+          video.srcObject = stream;
+          console.log(mediaRecorder);
+
+          const url = 'ws://192.168.71.70:3000';
+          const connection = new WebSocket(url);
+          connection.onopen = () => {
+            connection.send('hi');
+          };
+          mediaRecorder.addEventListener('dataavailable', event => {
+            connection.send(event.data);
+            console.log(event);
+          });
+          mediaRecorder.start(10);
+        } catch (err) {
+          console.log(err);
+        }
+      }
+    }
+
+    function watchStream() {
+      player.src = 'http://192.168.71.70:4000/video';
+    }
+
+    document.getElementById('playBtn').addEventListener('click', watchStream);
+
+    document.getElementById('record').addEventListener('click', startCapture);
+    document
+      .getElementById('download')
+      .addEventListener('click', () =>
+        download(new Blob(chunks), 'download.webm')
+      );
+  </script>
+</html>
