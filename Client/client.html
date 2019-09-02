@@ -2,6 +2,7 @@
 <html>
   <head>
     <title>Video Record</title>
+    <script src="https://webrtc.github.io/adapter/adapter-latest.js"></script>
   </head>
   <body>
     <div style="float: left">
@@ -18,17 +19,27 @@
     const video = document.getElementById('myVideo');
     const player = document.getElementById('player');
 
-    /* function download(blob, fileName) {
-      var a = document.createElement('a');
-      document.body.appendChild(a);
-      a.style = 'display: none';
-      url = URL.createObjectURL(blob);
-      a.href = url;
-      a.download = fileName;
-      a.click();
-      window.URL.revokeObjectURL(url);
-    }*/
-    let chunks = [];
+    const options = {
+      OfferToReceiveVideo: true
+    };
+    var pc = new RTCPeerConnection(options);
+
+    var pc2 = new RTCPeerConnection(options);
+
+    pc2.ontrack = function(e) {
+      console.log('here');
+    };
+
+    let stream;
+
+    //var myChannel = peerCon.createDataChannel('myChannel');
+    pc.onicecandidate = function(e) {
+      if (e.candidate !== null) pc2.addIceCandidate(e.candidate);
+    };
+    pc2.onicecandidate = function(e) {
+      console.log(e);
+      pc.addIceCandidate(e.candidate);
+    };
 
     async function startCapture() {
       if (video.srcObject) {
@@ -37,46 +48,39 @@
         tracks.forEach(track => track.stop());
         video.srcObject = null;
 
-        download(new Blob(chunks), 'recording.webm');
+        //  download(new Blob(chunks), 'recording.webm');
       } else {
         try {
-          let stream = await navigator.mediaDevices.getDisplayMedia({
+          stream = await navigator.mediaDevices.getDisplayMedia({
             video: true
           });
-          let mediaRecorder = new MediaRecorder(stream, {
-            mimeType: 'video/webm'
-          });
-
           video.srcObject = stream;
-          console.log(mediaRecorder);
-
-          const url = 'ws://192.168.71.70:3000';
-          const connection = new WebSocket(url);
-          connection.onopen = () => {
-            connection.send('hi');
-          };
-          mediaRecorder.addEventListener('dataavailable', event => {
-            connection.send(event.data);
-            console.log(event);
+          pc.createOffer().then(offer => {
+            pc.setLocalDescription(offer);
           });
-          mediaRecorder.start(10);
         } catch (err) {
           console.log(err);
         }
       }
     }
 
-    function watchStream() {
-      player.src = 'http://192.168.71.70:4000/video';
+    function play() {
+      pc2
+        .setRemoteDescription(pc.localDescription)
+        .then(() => pc2.createAnswer())
+        .then(answer => {
+          pc2.setLocalDescription(answer);
+        })
+        .then(() => {
+          pc.setRemoteDescription(pc2.localDescription);
+        })
+        .then(() => {
+          stream.getTracks().forEach(track => pc.addTrack(track, stream));
+        })
+        .catch(e => console.log('Error: ' + e));
     }
 
-    document.getElementById('playBtn').addEventListener('click', watchStream);
-
     document.getElementById('record').addEventListener('click', startCapture);
-    document
-      .getElementById('download')
-      .addEventListener('click', () =>
-        download(new Blob(chunks), 'download.webm')
-      );
+    document.getElementById('download').addEventListener('click', play);
   </script>
 </html>
