@@ -27,7 +27,7 @@
     var pc2 = new RTCPeerConnection(options);
 
     pc2.ontrack = function(e) {
-      console.log('here');
+      player.srcObject = e.streams[0];
     };
 
     let stream;
@@ -37,7 +37,6 @@
       if (e.candidate !== null) pc2.addIceCandidate(e.candidate);
     };
     pc2.onicecandidate = function(e) {
-      console.log(e);
       pc.addIceCandidate(e.candidate);
     };
 
@@ -55,6 +54,9 @@
             video: true
           });
           video.srcObject = stream;
+
+          stream.getTracks().forEach(track => pc.addTrack(track, stream));
+
           pc.createOffer().then(offer => {
             pc.setLocalDescription(offer);
           });
@@ -74,9 +76,7 @@
         .then(() => {
           pc.setRemoteDescription(pc2.localDescription);
         })
-        .then(() => {
-          stream.getTracks().forEach(track => pc.addTrack(track, stream));
-        })
+        .then(() => {})
         .catch(e => console.log('Error: ' + e));
     }
 
