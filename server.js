@@ -29,18 +29,4 @@ app.get('/video', function(req, res) {
   growingfile.pipe(res);
 });
 
-// app.get('/getvideo', function(req, res) {
-//   console.log('g');
-//   fs.stat(
-//     '/home/danielphingston/Desktop/Projects/MediaRecorder/Client/files/video.webm',
-//     (error, stats) => {
-//       res.json({
-//         url:
-//           'http://192.168.71.70:4000/video#t=' +
-//           (parseInt(stats.size / 200000) - 5)
-//       });
-//     }
-//   );
-// });
-
 app.listen(port, () => console.log(`Example app listening on port ${port}!`));
