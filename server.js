@@ -23,7 +23,7 @@ ws.on('connection', ws => {
   };
 
   pc2.ontrack = function(e) {
-    console.log(e.streams[0]);
+    console.log(e);
   };
   ws.on('message', message => {
     message = JSON.parse(message);

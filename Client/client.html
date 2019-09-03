@@ -33,12 +33,10 @@
     let stream;
 
     //var myChannel = peerCon.createDataChannel('myChannel');
-    pc.onicecandidate = function(e) {
-      if (e.candidate !== null) pc2.addIceCandidate(e.candidate);
-    };
-    pc2.onicecandidate = function(e) {
-      pc.addIceCandidate(e.candidate);
-    };
+
+    // pc2.onicecandidate = function(e) {
+    //    pc.addIceCandidate(e.candidate);
+    //  };
 
     async function startCapture() {
       if (video.srcObject) {
@@ -46,6 +44,7 @@
 
         tracks.forEach(track => track.stop());
         video.srcObject = null;
+        console.log(tracks);
 
         //  download(new Blob(chunks), 'recording.webm');
       } else {
@@ -56,10 +55,30 @@
           video.srcObject = stream;
 
           stream.getTracks().forEach(track => pc.addTrack(track, stream));
+          const url = 'ws://192.168.71.70:3000';
 
-          pc.createOffer().then(offer => {
-            pc.setLocalDescription(offer);
-          });
+          const connection = new WebSocket(url);
+
+          pc.onicecandidate = function(e) {
+            if (e.candidate !== null) connection.send(JSON.parse(e.candidate));
+          };
+
+          connection.onmessage = function(event) {
+            console.log(event);
+            data = JSON.parse(event.data);
+            if (data.type === 'candidate') {
+              pc.addIceCandidate(data.data);
+            } else if (data.type === 'description') {
+              pc.setRemoteDescription(data.data);
+            }
+          };
+
+          connection.onopen = () => {
+            pc.createOffer().then(offer => {
+              pc.setLocalDescription(offer);
+              connection.send(JSON.stringify(pc.localDescription));
+            });
+          };
         } catch (err) {
           console.log(err);
         }
