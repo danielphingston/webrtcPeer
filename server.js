@@ -2,22 +2,50 @@ const express = require('express');
 var cors = require('cors');
 const WebSocket = require('ws');
 const GrowingFile = require('growing-file');
+const wrtc = require('wrtc');
+
 var fs = require('fs');
 
 const ws = new WebSocket.Server({ port: 3000 });
 const app = express();
 app.use(cors());
 
-ws.on('connection', ws => {
-  const fileStream = fs.createWriteStream(
-    '/home/danielphingston/Desktop/Projects/MediaRecorder/Client/files/video.webm',
-    { flags: 'a' }
-  );
+let rooms = [];
+const options = {
+  OfferToReceiveVideo: true
+};
+var pc2 = new wrtc.RTCPeerConnection(options);
 
+ws.on('connection', ws => {
+  pc2.onicecandidate = function(e) {
+    if (e.candidate !== null)
+      ws.send(JSON.stringify({ type: 'candidate', data: e.candidate }));
+  };
+
+  pc2.ontrack = function(e) {
+    console.log(e.streams[0]);
+  };
   ws.on('message', message => {
-    fileStream.write(Buffer.from(new Uint8Array(message)));
+    message = JSON.parse(message);
+    if (message.type === 'offer') {
+      pc2.setRemoteDescription(message).then(
+        pc2
+          .createAnswer()
+          .then(answer => {
+            pc2.setLocalDescription(answer);
+            ws.send(
+              JSON.stringify({
+                type: 'description',
+                data: pc2.localDescription
+              })
+            );
+          })
+          .catch(e => {
+            console.log(e);
+          })
+      );
+    }
   });
-  ws.send('hi');
 });
 
 const port = 4000;
