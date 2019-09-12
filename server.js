@@ -2,59 +2,51 @@ const express = require('express');
 var cors = require('cors');
 const WebSocket = require('ws');
 const GrowingFile = require('growing-file');
+var Peer = require('simple-peer');
+
 const wrtc = require('wrtc');
 
 var fs = require('fs');
 
 const ws = new WebSocket.Server({ port: 3000 });
 const app = express();
+
 app.use(cors());
-
-let rooms = [];
-const options = {
-  OfferToReceiveVideo: true
-};
-var pc2 = new wrtc.RTCPeerConnection(options);
-
-ws.on('connection', ws => {
-  pc2.onicecandidate = function(e) {
-    if (e.candidate !== null)
-      ws.send(JSON.stringify({ type: 'candidate', data: e.candidate }));
-  };
-
-  pc2.ontrack = function(e) {
-    console.log(e);
-  };
-  ws.on('message', message => {
-    message = JSON.parse(message);
-    if (message.type === 'offer') {
-      pc2.setRemoteDescription(message).then(
-        pc2
-          .createAnswer()
-          .then(answer => {
-            pc2.setLocalDescription(answer);
-            ws.send(
-              JSON.stringify({
-                type: 'description',
-                data: pc2.localDescription
-              })
-            );
-          })
-          .catch(e => {
-            console.log(e);
-          })
-      );
-    }
-  });
+app.get('/', function(req, res) {
+  res.sendfile('Client/client.html');
 });
 
 const port = 4000;
-app.get('/video', function(req, res) {
-  console.log('here');
-  let growingfile = GrowingFile.open(
-    '/home/danielphingston/Desktop/Projects/MediaRecorder/Client/files/video.webm'
-  );
-  growingfile.pipe(res);
+
+app.get('/peer', (req, res) => {
+  peer2.on('signal', data => {
+    console.log(ws);
+    res.send(JSON.stringify(data));
+  });
+  if (message.type == 'signal') {
+    peer2.signal(message.data);
+  }
+});
+
+const peer2 = new Peer({ wrtc: wrtc });
+
+// const repeater = new Peer({ wrtc: wrtc, initiator: true });
+
+ws.on('connection', ws => {
+  peer2.on('data', data => {
+    console.log(data.toString());
+  });
+
+  peer2.on('signal', data => {
+    ws.send(JSON.stringify(data));
+  });
+
+  ws.on('message', message => {
+    message = JSON.parse(message);
+    if (message.type == 'signal') {
+      peer2.signal(message.data);
+    }
+  });
 });
 
 app.listen(port, () => console.log(`Example app listening on port ${port}!`));

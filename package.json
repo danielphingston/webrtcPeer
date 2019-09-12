@@ -14,8 +14,9 @@
         "express": "^4.17.1",
         "growing-file": "^0.1.3",
         "moment": "^2.24.0",
-        "nodemon": "^1.19.1",
+        "nodemon": "^1.19.2",
         "recordrtc": "^5.5.8",
+        "simple-peer": "^9.5.0",
         "wrtc": "^0.4.1",
         "ws": "^7.1.2"
     }

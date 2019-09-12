@@ -3,6 +3,7 @@
   <head>
     <title>Video Record</title>
     <script src="https://webrtc.github.io/adapter/adapter-latest.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/simple-peer@9.5.0/simplepeer.min.js"></script>
   </head>
   <body>
     <div style="float: left">
@@ -19,87 +20,39 @@
     const video = document.getElementById('myVideo');
     const player = document.getElementById('player');
 
-    const options = {
-      OfferToReceiveVideo: true
+    const wsurl = 'ws://192.168.71.70:3000';
+    const ws = new WebSocket(wsurl);
+
+    var peer1 = new SimplePeer({ initiator: true });
+
+    ws.onopen = () => {
+      peer1.on('signal', data => {
+        ws.send(JSON.stringify({ type: 'signal', data: data }));
+      });
     };
-    var pc = new RTCPeerConnection(options);
 
-    var pc2 = new RTCPeerConnection(options);
-
-    pc2.ontrack = function(e) {
-      player.srcObject = e.streams[0];
+    ws.onmessage = data => {
+      peer1.signal(JSON.parse(data.data));
     };
 
-    let stream;
+    /* peer2.on('signal', data => {
+      // when peer2 has signaling data, give it to peer1 somehow
+      console.log(data);
+      peer1.signal(data);
+    });*/
 
-    //var myChannel = peerCon.createDataChannel('myChannel');
+    peer1.on('connect', () => {
+      // wait for 'connect' event before using the data channel
+      console.log('connected');
+      peer1.send('hey peer2, how is it going?');
+    });
 
-    // pc2.onicecandidate = function(e) {
-    //    pc.addIceCandidate(e.candidate);
-    //  };
+    /*peer2.on('data', data => {
+      // got a data channel message
+      console.log('got a message from peer1: ' + data);
+    });*/
 
-    async function startCapture() {
-      if (video.srcObject) {
-        let tracks = video.srcObject.getTracks();
-
-        tracks.forEach(track => track.stop());
-        video.srcObject = null;
-        console.log(tracks);
-
-        //  download(new Blob(chunks), 'recording.webm');
-      } else {
-        try {
-          stream = await navigator.mediaDevices.getDisplayMedia({
-            video: true
-          });
-          video.srcObject = stream;
-
-          stream.getTracks().forEach(track => pc.addTrack(track, stream));
-          const url = 'ws://192.168.71.70:3000';
-
-          const connection = new WebSocket(url);
-
-          pc.onicecandidate = function(e) {
-            if (e.candidate !== null) connection.send(JSON.parse(e.candidate));
-          };
-
-          connection.onmessage = function(event) {
-            console.log(event);
-            data = JSON.parse(event.data);
-            if (data.type === 'candidate') {
-              pc.addIceCandidate(data.data);
-            } else if (data.type === 'description') {
-              pc.setRemoteDescription(data.data);
-            }
-          };
-
-          connection.onopen = () => {
-            pc.createOffer().then(offer => {
-              pc.setLocalDescription(offer);
-              connection.send(JSON.stringify(pc.localDescription));
-            });
-          };
-        } catch (err) {
-          console.log(err);
-        }
-      }
-    }
-
-    function play() {
-      pc2
-        .setRemoteDescription(pc.localDescription)
-        .then(() => pc2.createAnswer())
-        .then(answer => {
-          pc2.setLocalDescription(answer);
-        })
-        .then(() => {
-          pc.setRemoteDescription(pc2.localDescription);
-        })
-        .then(() => {})
-        .catch(e => console.log('Error: ' + e));
-    }
-
-    document.getElementById('record').addEventListener('click', startCapture);
-    document.getElementById('download').addEventListener('click', play);
+    //document.getElementById('record').addEventListener('//click', startCapture);
+    // document.getElementById('download').addEventListener('click', play);
   </script>
 </html>
