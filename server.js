@@ -4,6 +4,7 @@ const WebSocket = require('ws');
 const GrowingFile = require('growing-file');
 const puppeteer = require('puppeteer');
 var Peer = require('simple-peer');
+var fs = require('fs');
 
 var options = {
   headless: false,
@@ -19,10 +20,25 @@ var options = {
     // '--user-data-dir=/tmp/chromedata'
   ]
 };
+const fileStream = fs.createWriteStream(
+  '/home/danielphingston/Desktop/Projects/MediaRecorder/Client/files/video322.webm',
+  { flags: 'a' }
+);
 
 (async () => {
+  const videoWriter = new WebSocket.Server({ port: 2000 });
+
   const browser = await puppeteer.launch(options);
   const page = await browser.newPage();
+  videoWriter.on('connection', videoWriter => {
+    const fileStream = fs.createWriteStream(
+      '/home/danielphingston/Desktop/Projects/MediaRecorder/Client/files/video322.webm',
+      { flags: 'a' }
+    );
+    videoWriter.on('message', message => {
+      fileStream.write(Buffer.from(new Uint8Array(message)));
+    });
+  });
   await page.goto(
     'file:///home/danielphingston/Desktop/Projects/MediaRecorder/Client/video.html',
     {
@@ -46,11 +62,17 @@ var options = {
       console.log(data);
     });
     window.peer1.on('stream', data => {
-      console.log(data);
       window.vid.srcObject = data;
-    });
-    window.peer1.on('track', data => {
-      console.log('got Track', data);
+
+      window.videoWriter = new WebSocket('ws://192.168.71.70:2000');
+
+      let mediaRecorder = new MediaRecorder(data, {
+        mimeType: 'video/webm'
+      });
+      mediaRecorder.addEventListener('dataavailable', event => {
+        window.videoWriter.send(event.data);
+      });
+      mediaRecorder.start(10);
     });
   });
 
@@ -61,13 +83,6 @@ var options = {
       ws.send(req.query.data);
       res.send('success');
     });
-    // peer2.on('data', data => {
-    //   console.log(data);
-    // });
-
-    // peer2.on('signal', data => {
-    //   ws.send(JSON.stringify(data));
-    // });
 
     ws.on('message', message => {
       message = JSON.parse(message);
