@@ -17,13 +17,28 @@
     </div>
   </body>
   <script type="text/javascript">
-    const video = document.getElementById('myVideo');
+    const video1 = document.getElementById('myVideo');
     const player = document.getElementById('player');
 
     const wsurl = 'ws://192.168.71.70:3000';
-    const ws = new WebSocket(wsurl);
+    var peer1 = new SimplePeer({
+      initiator: true,
+      config: { iceServers: [{ urls: 'stun:stun.1.google.com:19302' }] }
+    });
 
-    var peer1 = new SimplePeer({ initiator: true });
+    setTimeout(() => {
+      navigator.mediaDevices
+        .getDisplayMedia({ video: true })
+        .then(gotMedia)
+        .catch(e => console.log(e));
+    }, 3000);
+
+    function gotMedia(stream) {
+      video1.srcObject = stream;
+      peer1.addStream(stream);
+    }
+
+    const ws = new WebSocket(wsurl);
 
     ws.onopen = () => {
       peer1.on('signal', data => {
@@ -32,20 +47,20 @@
     };
 
     ws.onmessage = data => {
+      console.log(data);
       peer1.signal(JSON.parse(data.data));
     };
 
+    peer1.on('connect', () => {
+      // wait for 'connect' event before using the data channel
+      console.log('connected');
+      peer1.send('hello');
+    });
     /* peer2.on('signal', data => {
       // when peer2 has signaling data, give it to peer1 somehow
       console.log(data);
       peer1.signal(data);
     });*/
-
-    peer1.on('connect', () => {
-      // wait for 'connect' event before using the data channel
-      console.log('connected');
-      peer1.send('hey peer2, how is it going?');
-    });
 
     /*peer2.on('data', data => {
       // got a data channel message
